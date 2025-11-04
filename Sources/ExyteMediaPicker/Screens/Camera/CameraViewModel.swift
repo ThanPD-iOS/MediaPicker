@@ -221,8 +221,16 @@ final actor CameraViewModel: NSObject, ObservableObject {
 
     private func updateOutputOrientation(_ output: AVCaptureOutput) {
         guard let connection = output.connection(with: .video) else { return }
-        if connection.isVideoRotationAngleSupported(0) {
-            connection.videoRotationAngle = 0
+
+        if #available(iOS 17.0, *) {
+            if connection.isVideoRotationAngleSupported(0) {
+                connection.videoRotationAngle = 0
+            }
+        } else {
+            // Fallback for iOS < 17: set portrait orientation if supported
+            if connection.isVideoOrientationSupported {
+                connection.videoOrientation = .portrait
+            }
         }
     }
 
@@ -250,10 +258,18 @@ final actor CameraViewModel: NSObject, ObservableObject {
     }
 
     private func selectAudioCaptureDevice() -> AVCaptureDevice? {
-        let session = AVCaptureDevice.DiscoverySession(
-            deviceTypes: [.microphone],
-            mediaType: .audio,
-            position: .unspecified)
+        let session: AVCaptureDevice.DiscoverySession
+        if #available(iOS 17.0, *) {
+            session = AVCaptureDevice.DiscoverySession(
+                deviceTypes: [.microphone],
+                mediaType: .audio,
+                position: .unspecified)
+        } else {
+            session = AVCaptureDevice.DiscoverySession(
+                deviceTypes: [.builtInMicrophone],
+                mediaType: .audio,
+                position: .unspecified)
+        }
 
         return session.devices.first
     }
@@ -293,3 +309,4 @@ extension CameraViewModel: AVCaptureFileOutputRecordingDelegate {
         }
     }
 }
+
